@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
                             .padding(5.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(text = "Animal Game", fontWeight = FontWeight.Bold, fontSize = 30.sp)
+                        Text(text = "Liar's Animals", fontWeight = FontWeight.Bold, fontSize = 30.sp)
 
                         var gameState by rememberSaveable { mutableStateOf(SeedSelect) }
                         val deck = rememberSaveable { mutableListOf<CardType>() }
