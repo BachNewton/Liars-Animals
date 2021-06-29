@@ -16,7 +16,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.animals.GameState.*
@@ -35,7 +38,7 @@ class MainActivity : ComponentActivity() {
                 // A surface container using the 'background' color from the theme
                 Surface(
                     color = MaterialTheme.colors.background,
-                    modifier = Modifier.padding(15.dp)
+                    modifier = Modifier.padding(5.dp)
                 ) {
                     Column(
                         modifier = Modifier
@@ -108,6 +111,17 @@ class MainActivity : ComponentActivity() {
         animalTypesInit: Float,
         generateCallback: (String, Int, Int, Int) -> Unit
     ) {
+        Text(
+            text = buildAnnotatedString {
+                append("Not sure what word to pick? Try: \"")
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                    append(WordSuggestions.get())
+                }
+                append("\"")
+            },
+            fontSize = 15.sp
+        )
+
         var deckSeed by rememberSaveable { mutableStateOf("") }
 
         OutlinedTextField(
