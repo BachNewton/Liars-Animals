@@ -49,6 +49,7 @@ class MainActivity : ComponentActivity() {
                         Text(text = "Liar's Animals", fontWeight = FontWeight.Bold, fontSize = 30.sp)
 
                         var gameState by rememberSaveable { mutableStateOf(SeedSelect) }
+                        var score by rememberSaveable { mutableStateOf(0) }
                         val deck = rememberSaveable { mutableListOf<CardType>() }
                         val knownCards = rememberSaveable { mutableListOf<CardType>() }
                         var deckSizeSliderSaved by rememberSaveable { mutableStateOf(5f) }
@@ -57,6 +58,7 @@ class MainActivity : ComponentActivity() {
 
                         when (gameState) {
                             SeedSelect -> DrawSeedSelect(
+                                score,
                                 deckSizeSliderSaved,
                                 revealSizeSliderSaved,
                                 animalTypesSliderSaved,
@@ -71,7 +73,9 @@ class MainActivity : ComponentActivity() {
                                     knownCards.clear()
                                     knownCards.addAll(getKnownCards(generatedDeck, revealSize))
                                     gameState = KnownCards
-                                }
+                                },
+                                { score-- },
+                                { score++ }
                             )
 
                             KnownCards -> DrawKnownCards(Collections.unmodifiableList(knownCards), deck.size - knownCards.size) {
@@ -106,10 +110,13 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun DrawSeedSelect(
+        score: Int,
         deckSizeInit: Float,
         revealSizeInit: Float,
         animalTypesInit: Float,
-        generateCallback: (String, Int, Int, Int) -> Unit
+        generateCallback: (String, Int, Int, Int) -> Unit,
+        decrementScoreCallback: () -> Unit,
+        incrementScoreCallback: () -> Unit
     ) {
         Text(
             text = buildAnnotatedString {
@@ -163,6 +170,27 @@ class MainActivity : ComponentActivity() {
             valueRange = 2f..(6f.coerceAtMost(deckSizeSlider)),
             steps = (6f.coerceAtMost(deckSizeSlider).roundToInt() - 3).coerceAtLeast(0)
         )
+
+        Row {
+            Button({ decrementScoreCallback() }) {
+                Text("-")
+            }
+            Spacer(Modifier.size(5.dp))
+            Text(
+                text = buildAnnotatedString {
+                    append("Your Score: ")
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append(score.toString())
+                    }
+                },
+                fontSize = 35.sp
+            )
+            Spacer(Modifier.size(5.dp))
+            Button({ incrementScoreCallback() }) {
+                Text("+")
+            }
+        }
+
 
         Spacer(Modifier.size(15.dp))
 
