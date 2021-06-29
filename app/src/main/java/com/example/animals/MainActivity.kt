@@ -1,11 +1,12 @@
 package com.example.animals
 
-import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -15,12 +16,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.animals.GameState.*
 import com.example.animals.ui.theme.AnimalsTheme
+import java.util.*
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
 
@@ -46,24 +48,34 @@ class MainActivity : ComponentActivity() {
                         var gameState by rememberSaveable { mutableStateOf(SeedSelect) }
                         val deck = rememberSaveable { mutableListOf<CardType>() }
                         val knownCards = rememberSaveable { mutableListOf<CardType>() }
-//                        var seedWord by remember { mutableStateOf(DEFAULT_SEED_WORD) }
+                        var deckSizeSliderSaved by rememberSaveable { mutableStateOf(5f) }
+                        var revealSizeSliderSaved by rememberSaveable { mutableStateOf(3f) }
+                        var animalTypesSliderSaved by rememberSaveable { mutableStateOf(5f) }
 
                         when (gameState) {
-                            SeedSelect -> DrawSeedSelect(fun (seed: String) {
-//                                seedWord = seed
-                                val generatedDeck = generateDeckFromSeed(seed)
-                                deck.clear()
-                                deck.addAll(generatedDeck)
-                                knownCards.clear()
-                                knownCards.addAll(getKnownCards(generatedDeck))
-                                gameState = KnownCards
-                            })
+                            SeedSelect -> DrawSeedSelect(
+                                deckSizeSliderSaved,
+                                revealSizeSliderSaved,
+                                animalTypesSliderSaved,
+                                fun (seed: String, deckSize: Int, revealSize: Int, animalTypes: Int) {
+                                    deckSizeSliderSaved = deckSize.toFloat()
+                                    revealSizeSliderSaved = revealSize.toFloat()
+                                    animalTypesSliderSaved = animalTypes.toFloat()
 
-                            KnownCards -> DrawKnownCards(knownCards) {
+                                    val generatedDeck = generateDeckFromSeed(seed, deckSize, animalTypes)
+                                    deck.clear()
+                                    deck.addAll(generatedDeck)
+                                    knownCards.clear()
+                                    knownCards.addAll(getKnownCards(generatedDeck, revealSize))
+                                    gameState = KnownCards
+                                }
+                            )
+
+                            KnownCards -> DrawKnownCards(Collections.unmodifiableList(knownCards), deck.size - knownCards.size) {
                                 gameState = DeckReveal
                             }
 
-                            DeckReveal -> DrawDeck(deck) {
+                            DeckReveal -> DrawDeck(Collections.unmodifiableList(deck)) {
                                 gameState = SeedSelect
                             }
                         }
@@ -74,31 +86,28 @@ class MainActivity : ComponentActivity() {
     }
 
     @ExperimentalStdlibApi
-    private fun generateDeckFromSeed(seedWord: String): List<CardType> {
+    private fun generateDeckFromSeed(seedWord: String, deckSize: Int, animalTypes: Int): List<CardType> {
         val seedAsNumber = seedWord.hashCode()
-//        val seedAsNumber = join("", seedWord.map { it.code.toString() }).toLong()
 
-        return listOf(
-            CardType.getRandom(seedAsNumber + 0),
-            CardType.getRandom(seedAsNumber + 1),
-            CardType.getRandom(seedAsNumber + 2),
-            CardType.getRandom(seedAsNumber + 3),
-            CardType.getRandom(seedAsNumber + 4)
-        )
+        val deck = mutableListOf<CardType>()
+        for (i in 0 until deckSize) {
+            deck.add(CardType.getRandom(seedAsNumber + i, animalTypes))
+        }
+
+        return Collections.unmodifiableList(deck).sortedBy { card -> card.name }
     }
 
-    private fun getKnownCards(deck: List<CardType>): List<CardType> {
-        val deckShuffled = deck.shuffled()
-
-        return listOf(
-            deckShuffled[0],
-            deckShuffled[1],
-            deckShuffled[2]
-        )
+    private fun getKnownCards(deck: List<CardType>, revealSize: Int): List<CardType> {
+        return deck.shuffled().slice(0 until revealSize).sortedBy { card -> card.name }
     }
 
     @Composable
-    private fun DrawSeedSelect(generateCallback: (seedWord: String) -> Unit) {
+    private fun DrawSeedSelect(
+        deckSizeInit: Float,
+        revealSizeInit: Float,
+        animalTypesInit: Float,
+        generateCallback: (String, Int, Int, Int) -> Unit
+    ) {
         var deckSeed by rememberSaveable { mutableStateOf("") }
 
         OutlinedTextField(
@@ -107,24 +116,70 @@ class MainActivity : ComponentActivity() {
             label = { Text("Deck Seed") }
         )
 
-        Spacer(Modifier.size(5.dp))
+        Spacer(Modifier.size(15.dp))
 
-        Button(onClick = { generateCallback(deckSeed) }, enabled = deckSeed.isNotBlank()) {
+        var deckSizeSlider by rememberSaveable { mutableStateOf(deckSizeInit) }
+        var revealSizeSlider by rememberSaveable { mutableStateOf(revealSizeInit) }
+        var animalTypesSlider by rememberSaveable { mutableStateOf(animalTypesInit) }
+
+        Text("Deck Size: ${deckSizeSlider.roundToInt()}")
+        Slider(
+            value = deckSizeSlider,
+            onValueChange = { newValue ->
+                revealSizeSlider = revealSizeSlider.coerceAtMost(deckSizeSlider - 1)
+                animalTypesSlider = animalTypesSlider.coerceAtMost(deckSizeSlider)
+                deckSizeSlider = newValue
+            },
+            valueRange = 2f..25f,
+            steps = 22
+        )
+
+        Text("Reveal Size: ${revealSizeSlider.roundToInt()}")
+        Slider(
+            value = revealSizeSlider,
+            onValueChange = { newValue -> revealSizeSlider = newValue },
+            valueRange = 1f..(deckSizeSlider - 1),
+            steps = (deckSizeSlider.roundToInt() - 3).coerceAtLeast(0)
+        )
+
+        Text("Animal Types: ${animalTypesSlider.roundToInt()}")
+        Slider(
+            value = animalTypesSlider,
+            onValueChange = { newValue -> animalTypesSlider = newValue },
+            valueRange = 2f..(6f.coerceAtMost(deckSizeSlider)),
+            steps = (6f.coerceAtMost(deckSizeSlider).roundToInt() - 3).coerceAtLeast(0)
+        )
+
+        Spacer(Modifier.size(15.dp))
+
+        Button(onClick = {
+            generateCallback(
+                deckSeed,
+                deckSizeSlider.roundToInt(),
+                revealSizeSlider.roundToInt(),
+                animalTypesSlider.roundToInt()
+            )
+         }, enabled = deckSeed.isNotBlank()) {
             Text("Generate!")
         }
     }
 
     @Composable
-    private fun DrawKnownCards(knownCards: MutableList<CardType>, revealCallback: () -> Unit) {
-        Row {
-            AnimalCard(type = knownCards[0])
-            AnimalCard(type = knownCards[1])
-            AnimalCard(type = knownCards[2])
-        }
-        
-        Text("There are two cards hidden from you")
+    private fun DrawKnownCards(knownCards: List<CardType>, hidden: Int, revealCallback: () -> Unit) {
+        Column(
+            Modifier.verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            for (i in knownCards.indices step 3) {
+                Row {
+                    if (i + 0 < knownCards.size) AnimalCard(knownCards[i + 0])
+                    if (i + 1 < knownCards.size) AnimalCard(knownCards[i + 1])
+                    if (i + 2 < knownCards.size) AnimalCard(knownCards[i + 2])
+                }
+            }
 
-        Column(Modifier.fillMaxHeight(), verticalArrangement = Arrangement.Bottom) {
+            Text("There are $hidden cards hidden from you")
+
             Button(onClick = { revealCallback() }) {
                 Text("Reveal the Deck!")
             }
@@ -132,32 +187,19 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun DrawDeck(deck: MutableList<CardType>, newGameCallback: () -> Unit) {
-        when (LocalConfiguration.current.orientation) {
-            Configuration.ORIENTATION_PORTRAIT -> {
+    private fun DrawDeck(deck: List<CardType>, newGameCallback: () -> Unit) {
+        Column(
+            Modifier.verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            for (i in deck.indices step 3) {
                 Row {
-                    AnimalCard(type = deck[0])
-                    AnimalCard(type = deck[1])
-                    AnimalCard(type = deck[2])
-                }
-                Row {
-                    AnimalCard(type = deck[3])
-                    AnimalCard(type = deck[4])
+                    if (i + 0 < deck.size) AnimalCard(deck[i + 0])
+                    if (i + 1 < deck.size) AnimalCard(deck[i + 1])
+                    if (i + 2 < deck.size) AnimalCard(deck[i + 2])
                 }
             }
 
-            else -> {
-                Row {
-                    AnimalCard(type = deck[0])
-                    AnimalCard(type = deck[1])
-                    AnimalCard(type = deck[2])
-                    AnimalCard(type = deck[3])
-                    AnimalCard(type = deck[4])
-                }
-            }
-        }
-
-        Column(Modifier.fillMaxHeight(), verticalArrangement = Arrangement.Bottom) {
             Button(onClick = { newGameCallback() }) {
                 Text("New Game")
             }
