@@ -1,2 +1,2 @@
 # Animal-Game
-An offline "Liars Dices" game variant for Android
+An offline "Liar's Dice" game variant for Android
